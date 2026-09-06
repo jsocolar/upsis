@@ -20,7 +20,14 @@ Imports:
     loo,
     posterior
 Suggests:
+    ggplot2,
+    knitr,
+    rmarkdown,
+    SBC,
     testthat (>= 3.0.0)
+Remotes:
+    hyunjimoon/SBC
 Config/testthat/edition: 3
+VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
