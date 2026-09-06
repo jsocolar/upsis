@@ -1,7 +1,9 @@
 # upsis
 
 `upsis` updates fitted `brms` models after modest additions or removals of data
-using Pareto-smoothed importance sampling (PSIS).
+using Pareto-smoothed importance sampling (PSIS). Updating with PSIS gives an
+effecient way to "upsize" the dataset used for model fitting, without a full
+re-fit.
 
 The package computes the change in log likelihood implied by the requested data
 update, smooths the resulting importance weights with `loo::psis()`, and
