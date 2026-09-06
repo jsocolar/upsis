@@ -2,7 +2,8 @@ Package: upsis
 Title: Update 'brms' Models with Pareto-Smoothed Importance Sampling
 Version: 0.0.0.9000
 Authors@R: 
-    person("Jacob B.", "Socolar", role = c("aut", "cre"))
+    person("Jacob B.", "Socolar", email = "jacob.socolar@gmail.com",
+           role = c("aut", "cre"))
 Description: Update fitted 'brms' models with modest additions or removals of
     data using Pareto-smoothed importance sampling. The package computes
     likelihood changes for the requested data update, smooths the resulting
@@ -21,4 +22,4 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.3

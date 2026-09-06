@@ -7,12 +7,19 @@
 upsis(model, data_add = NULL, data_remove = NULL)
 }
 \arguments{
-\item{model}{a model object (currently only brmsfit supported)}
+\item{model}{A model object. Currently only \link[brms:brmsfit-class]{brms::brmsfit} objects are
+supported.}
 
-\item{data_add}{additional data collected after the model was fit}
+\item{data_add}{Additional data collected after the model was fit.}
 
-\item{data_remove}{data included in model fitting whose influence to remove}
+\item{data_remove}{Data included in model fitting whose influence should be
+removed.}
+}
+\value{
+An object of class \code{"upsis"} containing the updated model, the raw
+PSIS object, the Pareto \code{k} diagnostic, and the PSIS weights.
 }
 \description{
-Update a model using PSIS
+Update a fitted model after adding or removing observations by using
+Pareto-smoothed importance sampling (PSIS).
 }

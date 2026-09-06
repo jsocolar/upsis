@@ -1,16 +1,64 @@
 #' Update a model using PSIS
-#' @param model a model object (currently only brmsfit supported)
-#' @param data_add additional data collected after the model was fit
-#' @param data_remove data included in model fitting whose influence to remove
+#'
+#' Update a fitted model after adding or removing observations by using
+#' Pareto-smoothed importance sampling (PSIS).
+#'
+#' @param model A model object. Currently only [brms::brmsfit] objects are
+#'   supported.
+#' @param data_add Additional data collected after the model was fit.
+#' @param data_remove Data included in model fitting whose influence should be
+#'   removed.
+#'
+#' @return An object of class `"upsis"` containing the updated model, the raw
+#'   PSIS object, the Pareto `k` diagnostic, and the PSIS weights.
 #' @export
 upsis <- function(model, data_add = NULL, data_remove = NULL) {
   UseMethod("upsis")
 }
 
 #' Update a brms model using PSIS
-#' @param model a brmsfit object
-#' @param data_add additional data collected after the model was fit
-#' @param data_remove data included in model fitting whose influence to remove
+#'
+#' `upsis.brmsfit()` computes the change in log likelihood associated with
+#' `data_add` and `data_remove`, uses PSIS to smooth the resulting importance
+#' weights, and stratified-resamples the post-warmup draws inside the
+#' `brmsfit` object's underlying Stan fit. The returned `updated_model` can then
+#' be passed to standard `brms` post-processing functions.
+#'
+#' @inheritParams upsis
+#'
+#' @section Assumptions:
+#' This update is an approximation to refitting the model on the changed data.
+#' It is intended for modest data updates that do not materially change the
+#' posterior and do not change the fitted model structure. In particular, it
+#' does not update data-dependent priors, spline knots, basis expansions, or
+#' other model components chosen when the original model was fit. Updates that
+#' introduce unsupported new grouping levels or other new parameters may require
+#' a full refit instead.
+#'
+#' @section Diagnostics:
+#' The Pareto `k` diagnostic is returned as `pareto_k` and printed with the
+#' result. Values above 0.7 trigger a warning and indicate that the PSIS
+#' approximation may be unreliable.
+#'
+#' @return An object of class `"upsis"` with elements:
+#' \describe{
+#'   \item{`updated_model`}{A `brmsfit` object with resampled posterior draws.}
+#'   \item{`psis`}{The object returned by [loo::psis()].}
+#'   \item{`pareto_k`}{The scalar Pareto `k` diagnostic.}
+#'   \item{`weights`}{The smoothed importance weights used for resampling.}
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' library(brms)
+#' library(upsis)
+#'
+#' fit <- brm(y ~ x, data = old_data)
+#' result <- upsis(fit, data_add = new_data)
+#'
+#' summary(result$updated_model)
+#' result$pareto_k
+#' }
 #' @export
 #' @method upsis brmsfit
 upsis.brmsfit <- function(model, data_add = NULL, data_remove = NULL) {
