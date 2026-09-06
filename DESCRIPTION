@@ -8,7 +8,8 @@ Description: Update fitted 'brms' models with modest additions or removals of
     data using Pareto-smoothed importance sampling. The package computes
     likelihood changes for the requested data update, smooths the resulting
     importance weights, and resamples posterior draws back into the fitted
-    model object for use with standard 'brms' post-processing tools.
+    model object for use with standard 'brms' post-processing tools. This
+    provides an efficient way to "upsize" the data underlying a 'brms' model. 
 License: BSD_3_clause + file LICENSE
 Encoding: UTF-8
 Depends:
