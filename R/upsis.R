@@ -24,7 +24,7 @@ upsis.brmsfit <- function(model, data_add = NULL, data_remove = NULL) {
 
   ll_change <- brms_log_lik_change(model, data_add, data_remove)
   psis_out <- psis_update(ll_change)
-  draw_weights <- loo::weights.importance_sampling(psis_out, log = FALSE)
+  draw_weights <- psis_weights(psis_out)
   draw_weights_list <- split_weights_by_chain(
     draw_weights,
     n_chains = brms::nchains(model)
@@ -50,7 +50,7 @@ upsis.brmsfit <- function(model, data_add = NULL, data_remove = NULL) {
   new_upsis_result(
     updated_model = updated_model,
     psis = psis_out,
-    pareto_k = psis_out$diagnostics$pareto_k,
+    pareto_k = pareto_k(psis_out),
     weights = draw_weights
   )
 }
@@ -63,8 +63,19 @@ new_upsis_result <- function(updated_model, psis = NULL, pareto_k = NA_real_,
     pareto_k = pareto_k,
     weights = weights
   )
-  class(out) <- "upsis"
+  class(out) <- c("upsis", "list")
   out
+}
+
+#' @export
+print.upsis <- function(x, ...) {
+  cat("upsis update\n")
+  if (!is.null(x$psis)) {
+    cat(sprintf("Pareto k: %s\n", format(x$pareto_k, digits = 3)))
+  } else {
+    cat("Pareto k: not computed\n")
+  }
+  invisible(x)
 }
 
 brms_log_lik_change <- function(model, data_add = NULL, data_remove = NULL) {
@@ -100,12 +111,14 @@ log_lik_rowsums <- function(model, newdata, data_arg) {
 }
 
 psis_update <- function(log_ratios, pareto_k_threshold = 0.7) {
+  validate_log_ratios(log_ratios)
+
   message("Performing PSIS.")
   psis_out <- loo::psis(log_ratios)
-  pareto_k <- psis_out$diagnostics$pareto_k
-  message(sprintf("Pareto k is %s.", format(pareto_k, digits = 3)))
+  k <- pareto_k(psis_out)
+  message(sprintf("Pareto k is %s.", format(k, digits = 3)))
 
-  if (pareto_k > pareto_k_threshold) {
+  if (k > pareto_k_threshold) {
     warning(
       sprintf(
         paste0(
@@ -121,10 +134,42 @@ psis_update <- function(log_ratios, pareto_k_threshold = 0.7) {
   psis_out
 }
 
+validate_log_ratios <- function(log_ratios) {
+  if (!is.numeric(log_ratios) || length(log_ratios) == 0) {
+    stop("PSIS log ratios must be a non-empty numeric vector.", call. = FALSE)
+  }
+  if (anyNA(log_ratios) || any(!is.finite(log_ratios))) {
+    stop("PSIS log ratios must all be finite and non-missing.", call. = FALSE)
+  }
+  invisible(log_ratios)
+}
+
+pareto_k <- function(psis_out) {
+  k <- psis_out$diagnostics$pareto_k
+  if (!is.numeric(k) || length(k) != 1 || is.na(k)) {
+    stop("PSIS output did not include a scalar Pareto k diagnostic.", call. = FALSE)
+  }
+  k
+}
+
+psis_weights <- function(psis_out) {
+  weights <- loo::weights.importance_sampling(psis_out, log = FALSE)
+  if (!is.numeric(weights) || length(weights) == 0) {
+    stop("PSIS output did not produce a non-empty numeric weight vector.", call. = FALSE)
+  }
+  if (anyNA(weights) || any(weights < 0)) {
+    stop("PSIS weights must be non-missing and non-negative.", call. = FALSE)
+  }
+  weights
+}
+
 split_weights_by_chain <- function(weights, n_chains) {
-  assertthat::assert_that(length(n_chains) == 1)
-  assertthat::assert_that(n_chains > 0)
-  assertthat::assert_that(length(weights) %% n_chains == 0)
+  if (length(n_chains) != 1 || n_chains < 1) {
+    stop("`n_chains` must be a positive scalar.", call. = FALSE)
+  }
+  if (length(weights) %% n_chains != 0) {
+    stop("The number of PSIS weights must be divisible by the number of chains.", call. = FALSE)
+  }
 
   draws_per_chain <- length(weights) / n_chains
   chain_id <- rep(seq_len(n_chains), each = draws_per_chain)
@@ -133,15 +178,22 @@ split_weights_by_chain <- function(weights, n_chains) {
 
 n_warmup_draws_per_chain <- function(draws_list, n_post_warmup_draws) {
   assertthat::assert_that("draws_list" %in% class(draws_list))
-  assertthat::assert_that(length(n_post_warmup_draws) == 1)
-  assertthat::assert_that(n_post_warmup_draws >= 0)
+  if (length(n_post_warmup_draws) != 1 || n_post_warmup_draws < 0) {
+    stop("`n_post_warmup_draws` must be a non-negative scalar.", call. = FALSE)
+  }
 
   n_chains <- posterior::nchains(draws_list)
-  assertthat::assert_that(n_post_warmup_draws %% n_chains == 0)
+  if (n_post_warmup_draws %% n_chains != 0) {
+    stop("Post-warmup draws must be evenly divisible across chains.", call. = FALSE)
+  }
 
   n_warmup_total <- posterior::ndraws(draws_list) - n_post_warmup_draws
-  assertthat::assert_that(n_warmup_total >= 0)
-  assertthat::assert_that(n_warmup_total %% n_chains == 0)
+  if (n_warmup_total < 0) {
+    stop("The requested post-warmup draw count exceeds the stored draw count.", call. = FALSE)
+  }
+  if (n_warmup_total %% n_chains != 0) {
+    stop("Warmup draws must be evenly divisible across chains.", call. = FALSE)
+  }
 
   n_warmup_total / n_chains
 }
@@ -153,6 +205,7 @@ resample_by_chain <- function(draws_list, n_warmup, weights) {
   assertthat::assert_that("draws_list" %in% class(draws_list))
   assertthat::assert_that(length(draws_list) == length(weights))
   assertthat::assert_that(length(draws_list) == posterior::nchains(draws_list))
+  assertthat::assert_that(length(n_warmup) == length(weights))
 
   out <- list()
   for (i in seq_along(draws_list)) {
@@ -165,10 +218,19 @@ resample_by_chain <- function(draws_list, n_warmup, weights) {
 resample_one_chain <- function(draws_list, n_warmup_draws, weights) {
   draws_list <- posterior::as_draws_list(draws_list)
   assertthat::assert_that(posterior::nchains(draws_list) == 1)
-  assertthat::assert_that(length(n_warmup_draws) == 1)
+  if (length(n_warmup_draws) != 1 || n_warmup_draws < 0) {
+    stop("`n_warmup_draws` must be a non-negative scalar.", call. = FALSE)
+  }
   n_draws <- posterior::ndraws(draws_list)
-  assertthat::assert_that(n_draws > n_warmup_draws)
-  assertthat::assert_that((n_draws - n_warmup_draws) == length(weights))
+  if (n_draws <= n_warmup_draws) {
+    stop("Each chain must contain at least one post-warmup draw.", call. = FALSE)
+  }
+  if ((n_draws - n_warmup_draws) != length(weights)) {
+    stop(
+      "The number of weights must equal the number of post-warmup draws.",
+      call. = FALSE
+    )
+  }
   draws_df <- posterior::as_draws_df(draws_list)
   post_warmup_draws <- draws_df[(n_warmup_draws + 1):n_draws, ]
   resampled_draws <- posterior::resample_draws(
