@@ -1,12 +1,21 @@
 Package: upsis
-Title: What the Package Does (One Line, Title Case)
+Title: Update 'brms' Models with Pareto-Smoothed Importance Sampling
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    person("Jacob B.", "Socolar", role = c("aut", "cre"))
+Description: Update fitted 'brms' models with modest additions or removals of
+    data using Pareto-smoothed importance sampling. The package computes
+    likelihood changes for the requested data update, smooths the resulting
+    importance weights, and resamples posterior draws back into the fitted
+    model object for use with standard 'brms' post-processing tools.
+License: BSD_3_clause + file LICENSE
 Encoding: UTF-8
+Depends:
+    R (>= 4.1.0)
+Imports:
+    assertthat,
+    brms,
+    loo,
+    posterior
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
