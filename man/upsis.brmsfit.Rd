@@ -7,12 +7,57 @@
 \method{upsis}{brmsfit}(model, data_add = NULL, data_remove = NULL)
 }
 \arguments{
-\item{model}{a brmsfit object}
+\item{model}{A model object. Currently only \link[brms:brmsfit-class]{brms::brmsfit} objects are
+supported.}
 
-\item{data_add}{additional data collected after the model was fit}
+\item{data_add}{Additional data collected after the model was fit.}
 
-\item{data_remove}{data included in model fitting whose influence to remove}
+\item{data_remove}{Data included in model fitting whose influence should be
+removed.}
+}
+\value{
+An object of class \code{"upsis"} with elements:
+\describe{
+\item{\code{updated_model}}{A \code{brmsfit} object with resampled posterior draws.}
+\item{\code{psis}}{The object returned by \code{\link[loo:psis]{loo::psis()}}.}
+\item{\code{pareto_k}}{The scalar Pareto \code{k} diagnostic.}
+\item{\code{weights}}{The smoothed importance weights used for resampling.}
+}
 }
 \description{
-Update a brms model using PSIS
+\code{upsis.brmsfit()} computes the change in log likelihood associated with
+\code{data_add} and \code{data_remove}, uses PSIS to smooth the resulting importance
+weights, and stratified-resamples the post-warmup draws inside the
+\code{brmsfit} object's underlying Stan fit. The returned \code{updated_model} can then
+be passed to standard \code{brms} post-processing functions.
+}
+\section{Assumptions}{
+
+This update is an approximation to refitting the model on the changed data.
+It is intended for modest data updates that do not materially change the
+posterior and do not change the fitted model structure. In particular, it
+does not update data-dependent priors, spline knots, basis expansions, or
+other model components chosen when the original model was fit. Updates that
+introduce unsupported new grouping levels or other new parameters may require
+a full refit instead.
+}
+
+\section{Diagnostics}{
+
+The Pareto \code{k} diagnostic is returned as \code{pareto_k} and printed with the
+result. Values above 0.7 trigger a warning and indicate that the PSIS
+approximation may be unreliable.
+}
+
+\examples{
+\dontrun{
+library(brms)
+library(upsis)
+
+fit <- brm(y ~ x, data = old_data)
+result <- upsis(fit, data_add = new_data)
+
+summary(result$updated_model)
+result$pareto_k
+}
 }
