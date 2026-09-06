@@ -11,6 +11,9 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
+  fig.width = 8,
+  fig.height = 4.5,
+  out.width = "100%",
   eval = FALSE
 )
 ```
@@ -30,7 +33,8 @@ The example uses 100 observations per simulated dataset. Each fit sees the first
 
 The chunks are not evaluated when the package is checked, because a useful SBC
 run requires many repeated Stan fits. Copy them into an interactive session or
-run the vignette manually when you want to perform the calibration study.
+temporarily set `eval = TRUE` while rendering locally. During development,
+reduce `n_sims` before rendering the full article.
 
 ```{r setup}
 library(SBC)
@@ -40,6 +44,19 @@ library(posterior)
 library(upsis)
 
 options(brms.backend = "cmdstanr")
+```
+
+```{r backend-result}
+new_upsis_sbc_fit <- function(draws, pareto_k) {
+  structure(
+    list(draws = draws, pareto_k = pareto_k),
+    class = "upsis_sbc_fit"
+  )
+}
+
+as_draws_matrix.upsis_sbc_fit <- function(x, ...) {
+  x$draws
+}
 ```
 
 ```{r priors}
@@ -98,7 +115,7 @@ fit_then_update <- function(generated, cores = 1) {
     prior = regression_priors,
     family = gaussian(),
     chains = 4,
-    iter = 2000,
+    iter = 3500,
     warmup = 1000,
     cores = cores,
     seed = 123,
@@ -111,7 +128,11 @@ fit_then_update <- function(generated, cores = 1) {
     updated$updated_model,
     variable = c("b_Intercept", "b_x", "sigma")
   )
-  posterior_draws
+
+  new_upsis_sbc_fit(
+    draws = posterior_draws,
+    pareto_k = updated$pareto_k
+  )
 }
 
 backend <- SBC_backend_function(
@@ -127,14 +148,42 @@ backend <- SBC_backend_function(
 results <- compute_SBC(
   datasets,
   backend,
-  keep_fits = FALSE,
+  keep_fits = TRUE,
   cache_mode = "results",
   cache_location = file.path(tempdir(), "upsis-sbc-linear-regression")
 )
 ```
 
-```{r plots}
+The default R-hat and ESS diagnostics reported by `compute_SBC()` are computed
+from the posterior draws returned by the backend. Here, those are the draws from
+`updated$updated_model`, after incorporating observations 51 through 100 with
+`upsis()`. They are not diagnostics from the initial 50-observation `brms` fit.
+
+Because `keep_fits = TRUE` stores the compact objects returned by the backend,
+we can also summarize the Pareto `k` values from the PSIS update:
+
+```{r pareto-k-summary}
+pareto_k <- vapply(
+  results$fits,
+  function(fit) {
+    if (inherits(fit, "upsis_sbc_fit")) {
+      fit$pareto_k
+    } else {
+      NA_real_
+    }
+  },
+  numeric(1)
+)
+
+summary(pareto_k)
+mean(pareto_k > 0.7, na.rm = TRUE)
+```
+
+```{r rank-histogram, fig.width = 10, fig.height = 4.8}
 plot_rank_hist(results)
+```
+
+```{r ecdf-difference, fig.width = 10, fig.height = 4.8}
 plot_ecdf_diff(results)
 ```
 
