@@ -281,11 +281,13 @@ resample_one_chain <- function(draws_list, n_warmup_draws, weights) {
   }
   draws_df <- posterior::as_draws_df(draws_list)
   post_warmup_draws <- draws_df[(n_warmup_draws + 1):n_draws, ]
+  post_warmup_draws$.upsis_draw_id <- seq_len(nrow(post_warmup_draws))
   resampled_draws <- posterior::resample_draws(
     post_warmup_draws,
     weights = weights,
     method = "stratified"
   )
+  resampled_draws <- sort_resampled_draws(resampled_draws)
   if (n_warmup_draws > 0) {
     warmup_draws <- draws_df[1:n_warmup_draws, ]
     resampled_draws <- rbind(warmup_draws, resampled_draws)
@@ -294,4 +296,16 @@ resample_one_chain <- function(draws_list, n_warmup_draws, weights) {
     resampled_draws$.iteration <- 1:n_draws
   }
   posterior::as_draws_list(resampled_draws)[[1]]
+}
+
+sort_resampled_draws <- function(resampled_draws) {
+  if (!".upsis_draw_id" %in% names(resampled_draws)) {
+    stop("Resampled draws are missing the original draw id.", call. = FALSE)
+  }
+
+  resampled_draws <- resampled_draws[order(resampled_draws$.upsis_draw_id), ]
+  resampled_draws$.upsis_draw_id <- NULL
+  resampled_draws$.draw <- seq_len(nrow(resampled_draws))
+  resampled_draws$.iteration <- seq_len(nrow(resampled_draws))
+  resampled_draws
 }

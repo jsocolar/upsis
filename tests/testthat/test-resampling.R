@@ -52,6 +52,23 @@ test_that("one-chain resampling preserves warmup draws and draw shape", {
   expect_equal(resampled$alpha[1:2], c(1, 2))
 })
 
+test_that("resampled post-warmup draws are sorted by original draw id", {
+  resampled_draws <- posterior::as_draws_df(data.frame(
+    alpha = c(4, 1, 4, 2),
+    .chain = rep(1, 4),
+    .iteration = 1:4,
+    .draw = 1:4,
+    .upsis_draw_id = c(4, 1, 4, 2)
+  ))
+
+  sorted <- upsis:::sort_resampled_draws(resampled_draws)
+
+  expect_equal(sorted$alpha, c(1, 2, 4, 4))
+  expect_false(".upsis_draw_id" %in% names(sorted))
+  expect_equal(sorted$.draw, 1:4)
+  expect_equal(sorted$.iteration, 1:4)
+})
+
 test_that("one-chain resampling validates post-warmup weight length", {
   draws <- draws_list_fixture(n_iterations = 5, n_chains = 1)
 
