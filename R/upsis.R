@@ -28,7 +28,7 @@ upsis <- function(model, data_add = NULL, data_remove = NULL) {
 #'
 #' @section Assumptions:
 #' This update is an approximation to refitting the model on the changed data.
-#' It is intended for modest data updates that do not materially change the
+#' It is intended for data updates that do not radically change the
 #' posterior and do not change the fitted model structure. In particular, it
 #' does not update data-dependent priors, spline knots, basis expansions, or
 #' other model components chosen when the original model was fit. Updates that
